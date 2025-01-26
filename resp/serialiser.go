@@ -62,3 +62,26 @@ func (s *SimpleString) Deserialise(data []byte) (int, error) {
 	s.Data = string(data)
 	return position, nil
 }
+
+// SimpleError is a redis data type that implements the
+// RESPDatatype interface
+type SimpleError struct {
+	Data string
+}
+
+func (s *SimpleError) Serialise() ([]byte, error) {
+	return []byte(SIMPLE_ERROR_IDENTIFIER + s.Data + TERMINATOR), nil
+}
+
+func (s *SimpleError) Deserialise(data []byte) (int, error) {
+	// check if data is of type simple error
+	if string(data[0]) != SIMPLE_ERROR_IDENTIFIER {
+		return 0, errInvalidDeserialiser
+	}
+	position, token, err := tokenize(data)
+	if err != nil {
+		return position, err
+	}
+	s.Data = string(token)
+	return position, nil
+}
