@@ -1,6 +1,9 @@
 package resp
 
-import "strconv"
+import (
+	"bytes"
+	"strconv"
+)
 
 const (
 	SIMPLE_STRING_IDENTIFIER = "+"
@@ -167,4 +170,109 @@ func (bs *BulkString) Deserialise(data []byte) (int, error) {
 	}
 	bs.Data = data[position+1 : position+1+length]
 	return position + length + TERMINATOR_SIZE, nil
+}
+
+// Array is a redis data type that implements the
+// RESPDatatype interface
+type Array struct {
+	Size     int
+	Elements []RESPDatatype
+}
+
+// Serialise serialises an Array into the RESP format
+func (a *Array) Serialise() ([]byte, error) {
+	// null array
+	if a.Size == -1 {
+		return []byte(ARRAY_IDENTIFIER + "-1" + TERMINATOR), nil
+	}
+	// empty array
+	if a.Size == 0 {
+		return []byte(ARRAY_IDENTIFIER + "0" + TERMINATOR), nil
+	}
+
+	var serialised bytes.Buffer
+	serialised.WriteString("*" + strconv.Itoa(a.Size) + TERMINATOR)
+	for i := 0; i < len(a.Elements); i++ {
+		serialisedElement, err := a.Elements[i].Serialise()
+		if err != nil {
+			return nil, err
+		}
+		serialised.Write(serialisedElement)
+	}
+	return serialised.Bytes(), nil
+}
+
+// Deserialise converts data into an Array
+func (a *Array) Deserialise(data []byte) (int, error) {
+	// check if data is of type array
+	if string(data[0]) != ARRAY_IDENTIFIER {
+		return 0, errInvalidDeserialiser
+	}
+	// null array
+	if string(data[1]) == "-1" {
+		a.Size = -1
+		a.Elements = nil
+		return 1, nil
+	}
+	// empty array
+	if string(data[1]) == "0" {
+		a.Size = 0
+		a.Elements = make([]RESPDatatype, 0)
+		return 1, nil
+	}
+
+	position, token, err := tokenize(data)
+	if err != nil {
+		return position, err
+	}
+	length, err := strconv.Atoi(string(token))
+	if err != nil {
+		return position, errLengthExtraction
+	}
+	a.Size = length
+	a.Elements = make([]RESPDatatype, a.Size)
+
+	for i := 0; i < a.Size; i++ {
+		position++
+		switch string(data[position]) {
+		case SIMPLE_STRING_IDENTIFIER:
+			a.Elements[i] = new(SimpleString)
+			relativePos, err := a.Elements[i].Deserialise(data[position:])
+			if err != nil {
+				return position + relativePos, err
+			}
+			position += relativePos
+		case SIMPLE_ERROR_IDENTIFIER:
+			a.Elements[i] = new(SimpleError)
+			relativePos, err := a.Elements[i].Deserialise(data[position:])
+			if err != nil {
+				return position + relativePos, err
+			}
+			position += relativePos
+		case INTEGER_IDENTIFIER:
+			a.Elements[i] = new(Integer)
+			relativePos, err := a.Elements[i].Deserialise(data[position:])
+			if err != nil {
+				return position + relativePos, err
+			}
+			position += relativePos
+		case BULK_STRING_IDENTIFIER:
+			a.Elements[i] = new(BulkString)
+			relativePos, err := a.Elements[i].Deserialise(data[position:])
+			if err != nil {
+				return position + relativePos, err
+			}
+			position += relativePos
+		case ARRAY_IDENTIFIER:
+			a.Elements[i] = new(Array)
+			relativePos, err := a.Elements[i].Deserialise(data[position:])
+			if err != nil {
+				return position + relativePos, err
+			}
+			position += relativePos
+		default:
+			return position, errUnidentifiedType
+		}
+	}
+	return position, nil
 }
