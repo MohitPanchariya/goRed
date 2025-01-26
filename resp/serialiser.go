@@ -1,5 +1,7 @@
 package resp
 
+import "strconv"
+
 const (
 	SIMPLE_STRING_IDENTIFIER = "+"
 	SIMPLE_ERROR_IDENTIFIER  = "-"
@@ -83,5 +85,32 @@ func (s *SimpleError) Deserialise(data []byte) (int, error) {
 		return position, err
 	}
 	s.Data = string(token)
+	return position, nil
+}
+
+// Integer is a redis data type that implements the
+// RESPDatatype interface
+type Integer struct {
+	Data int64
+}
+
+func (i *Integer) Serialise() ([]byte, error) {
+	return []byte(INTEGER_IDENTIFIER + strconv.Itoa(int(i.Data)) + TERMINATOR), nil
+}
+
+func (i *Integer) Deserialise(data []byte) (int, error) {
+	// check if data is of type Integer
+	if string(data[0]) != INTEGER_IDENTIFIER {
+		return 0, nil
+	}
+	position, data, err := tokenize(data)
+	if err != nil {
+		return position, err
+	}
+	num, err := strconv.Atoi(string(data))
+	if err != nil {
+		return position, errIntegerConversion
+	}
+	i.Data = int64(num)
 	return position, nil
 }
