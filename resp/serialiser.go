@@ -9,6 +9,7 @@ const (
 	BULK_STRING_IDENTIFIER   = "$"
 	ARRAY_IDENTIFIER         = "*"
 	TERMINATOR               = "\r\n"
+	TERMINATOR_SIZE          = 2
 )
 
 // RESPDatatype is implemented by a redis
@@ -118,4 +119,52 @@ func (i *Integer) Deserialise(data []byte) (int, error) {
 	}
 	i.Data = int64(num)
 	return position, nil
+}
+
+// BulkString is a redis data type that implement the
+// RESPDatatype interface
+type BulkString struct {
+	Size int
+	Data []byte
+}
+
+// Serialise serialises a BulkString into the RESP format
+func (bs *BulkString) Serialise() ([]byte, error) {
+	// null bulk string
+	if bs.Size == -1 {
+		return []byte(BULK_STRING_IDENTIFIER + "-1" + TERMINATOR), nil
+	}
+	// empty bulk string
+	if bs.Size == 0 {
+		return []byte(BULK_STRING_IDENTIFIER + "0" + TERMINATOR + TERMINATOR), nil
+	}
+	return []byte(BULK_STRING_IDENTIFIER + strconv.Itoa(bs.Size) + TERMINATOR + string(bs.Data) + TERMINATOR), nil
+}
+
+// Deserialise converts data into a BulkString
+func (bs *BulkString) Deserialise(data []byte) (int, error) {
+	// check if data is of type bulk string
+	if string(data[0]) != BULK_STRING_IDENTIFIER {
+		return 0, errInvalidDeserialiser
+	}
+	position, token, err := tokenize(data)
+	if err != nil {
+		return position, err
+	}
+	length, err := strconv.Atoi(string(token))
+	if err != nil {
+		return position, errLengthExtraction
+	}
+	bs.Size = length
+	// null bulk string
+	if bs.Size == -1 {
+		bs.Data = nil
+		return position, nil
+	}
+	if bs.Size == 0 {
+		bs.Data = make([]byte, 0)
+		return position + TERMINATOR_SIZE, nil
+	}
+	bs.Data = data[position+1 : position+1+length]
+	return position + length + TERMINATOR_SIZE, nil
 }
