@@ -237,42 +237,22 @@ func (a *Array) Deserialise(data []byte) (int, error) {
 		switch string(data[position]) {
 		case SIMPLE_STRING_IDENTIFIER:
 			a.Elements[i] = new(SimpleString)
-			relativePos, err := a.Elements[i].Deserialise(data[position:])
-			if err != nil {
-				return position + relativePos, err
-			}
-			position += relativePos
 		case SIMPLE_ERROR_IDENTIFIER:
 			a.Elements[i] = new(SimpleError)
-			relativePos, err := a.Elements[i].Deserialise(data[position:])
-			if err != nil {
-				return position + relativePos, err
-			}
-			position += relativePos
 		case INTEGER_IDENTIFIER:
 			a.Elements[i] = new(Integer)
-			relativePos, err := a.Elements[i].Deserialise(data[position:])
-			if err != nil {
-				return position + relativePos, err
-			}
-			position += relativePos
 		case BULK_STRING_IDENTIFIER:
 			a.Elements[i] = new(BulkString)
-			relativePos, err := a.Elements[i].Deserialise(data[position:])
-			if err != nil {
-				return position + relativePos, err
-			}
-			position += relativePos
 		case ARRAY_IDENTIFIER:
 			a.Elements[i] = new(Array)
-			relativePos, err := a.Elements[i].Deserialise(data[position:])
-			if err != nil {
-				return position + relativePos, err
-			}
-			position += relativePos
 		default:
 			return position, errUnidentifiedType
 		}
+		relativePos, err := a.Elements[i].Deserialise(data[position:])
+		if err != nil {
+			return position + relativePos, err
+		}
+		position += relativePos
 	}
 	return position, nil
 }
