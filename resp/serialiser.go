@@ -45,13 +45,13 @@ type SimpleString struct {
 	Data string
 }
 
-// Serialise is used to serialise a SimpleString into
+// Serialise serialises a SimpleString into
 // the RESP format
 func (s *SimpleString) Serialise() ([]byte, error) {
 	return []byte(SIMPLE_STRING_IDENTIFIER + s.Data + TERMINATOR), nil
 }
 
-// Deserialise is used to convert data into a SimpleString
+// Deserialise converts data into a SimpleString
 func (s *SimpleString) Deserialise(data []byte) (int, error) {
 	// check data type
 	if string(data[0]) != SIMPLE_STRING_IDENTIFIER {
@@ -71,10 +71,13 @@ type SimpleError struct {
 	Data string
 }
 
+// Serialise serialises a SimpleError into the RESP
+// format
 func (s *SimpleError) Serialise() ([]byte, error) {
 	return []byte(SIMPLE_ERROR_IDENTIFIER + s.Data + TERMINATOR), nil
 }
 
+// Deserialise converts data into a SimpleError
 func (s *SimpleError) Deserialise(data []byte) (int, error) {
 	// check if data is of type simple error
 	if string(data[0]) != SIMPLE_ERROR_IDENTIFIER {
@@ -94,10 +97,12 @@ type Integer struct {
 	Data int64
 }
 
+// Serialise serialises an Integer into the RESP format
 func (i *Integer) Serialise() ([]byte, error) {
 	return []byte(INTEGER_IDENTIFIER + strconv.Itoa(int(i.Data)) + TERMINATOR), nil
 }
 
+// Deserialise converts data into an Integer
 func (i *Integer) Deserialise(data []byte) (int, error) {
 	// check if data is of type Integer
 	if string(data[0]) != INTEGER_IDENTIFIER {
