@@ -40,7 +40,7 @@ func tokenize(data []byte) (int, []byte, error) {
 			return i, token, nil
 		}
 	}
-	return len(data) - 1, nil, errTerminatorNotFound
+	return len(data) - 1, nil, ErrTerminatorNotFound
 }
 
 // SimpleString is a redis data type that implements
@@ -59,7 +59,7 @@ func (s *SimpleString) Serialise() ([]byte, error) {
 func (s *SimpleString) Deserialise(data []byte) (int, error) {
 	// check data type
 	if string(data[0]) != SIMPLE_STRING_IDENTIFIER {
-		return 0, errInvalidDeserialiser
+		return 0, ErrInvalidDeserialiser
 	}
 	position, data, err := tokenize(data)
 	if err != nil {
@@ -85,7 +85,7 @@ func (s *SimpleError) Serialise() ([]byte, error) {
 func (s *SimpleError) Deserialise(data []byte) (int, error) {
 	// check if data is of type simple error
 	if string(data[0]) != SIMPLE_ERROR_IDENTIFIER {
-		return 0, errInvalidDeserialiser
+		return 0, ErrInvalidDeserialiser
 	}
 	position, token, err := tokenize(data)
 	if err != nil {
@@ -118,7 +118,7 @@ func (i *Integer) Deserialise(data []byte) (int, error) {
 	}
 	num, err := strconv.Atoi(string(data))
 	if err != nil {
-		return position, errIntegerConversion
+		return position, ErrIntegerConversion
 	}
 	i.Data = int64(num)
 	return position, nil
@@ -148,7 +148,7 @@ func (bs *BulkString) Serialise() ([]byte, error) {
 func (bs *BulkString) Deserialise(data []byte) (int, error) {
 	// check if data is of type bulk string
 	if string(data[0]) != BULK_STRING_IDENTIFIER {
-		return 0, errInvalidDeserialiser
+		return 0, ErrInvalidDeserialiser
 	}
 	position, token, err := tokenize(data)
 	if err != nil {
@@ -156,7 +156,7 @@ func (bs *BulkString) Deserialise(data []byte) (int, error) {
 	}
 	length, err := strconv.Atoi(string(token))
 	if err != nil {
-		return position, errLengthExtraction
+		return position, ErrLengthExtraction
 	}
 	bs.Size = length
 	// null bulk string
@@ -206,7 +206,7 @@ func (a *Array) Serialise() ([]byte, error) {
 func (a *Array) Deserialise(data []byte) (int, error) {
 	// check if data is of type array
 	if string(data[0]) != ARRAY_IDENTIFIER {
-		return 0, errInvalidDeserialiser
+		return 0, ErrInvalidDeserialiser
 	}
 	// null array
 	if string(data[1]) == "-1" {
@@ -227,7 +227,7 @@ func (a *Array) Deserialise(data []byte) (int, error) {
 	}
 	length, err := strconv.Atoi(string(token))
 	if err != nil {
-		return position, errLengthExtraction
+		return position, ErrLengthExtraction
 	}
 	a.Size = length
 	a.Elements = make([]RESPDatatype, a.Size)
@@ -246,7 +246,7 @@ func (a *Array) Deserialise(data []byte) (int, error) {
 		case ARRAY_IDENTIFIER:
 			a.Elements[i] = new(Array)
 		default:
-			return position, errUnidentifiedType
+			return position, ErrUnidentifiedType
 		}
 		relativePos, err := a.Elements[i].Deserialise(data[position:])
 		if err != nil {
