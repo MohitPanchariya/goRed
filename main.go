@@ -10,7 +10,7 @@ import (
 	"github.com/MohitPanchariya/goRed/resp"
 )
 
-func dispatcher(c net.Conn) {
+func dispatch(c net.Conn) {
 	var respError resp.SimpleError
 	err := dispatchHelper(c)
 	if err != nil {
@@ -25,51 +25,57 @@ func dispatcher(c net.Conn) {
 }
 
 func dispatchHelper(c net.Conn) error {
-	// TODO: dispatch to handlers
 	reader := bufio.NewReader(c)
-	// client always sends an array of bulk strings
-	data, err := reader.ReadBytes('\n')
+	var err error
+	// command stores the command and arguments passed
+	var command [][]byte
+	// arrayToken is made up of ARRAY_IDENTIFIER<size>TERMINATOR
+	arrayToken, err := reader.ReadBytes('\n')
 	if err != nil {
 		return resp.ErrTerminatorNotFound
 	}
-	if string(data[0]) != resp.ARRAY_IDENTIFIER {
+	if string(arrayToken[0]) != resp.ARRAY_IDENTIFIER {
 		return resp.ErrInvalidClientData
 	}
-	// find the size of the array
-	size, err := strconv.Atoi(string(data[1 : len(data)-resp.TERMINATOR_SIZE]))
+	arraySize, err := strconv.Atoi(string(arrayToken[1 : len(arrayToken)-resp.TERMINATOR_SIZE]))
 	if err != nil {
 		return resp.ErrLengthExtraction
 	}
-	for i := 0; i < size; i++ {
-		// read one bulk string at a time
+	// read one bulk string at a time
+	for i := 0; i < arraySize; i++ {
 		bulkString, err := reader.ReadBytes('\n')
 		if err != nil {
 			return resp.ErrTerminatorNotFound
 		}
 		// extract length
-		length, err := strconv.Atoi(string(data[1 : len(bulkString)-resp.TERMINATOR_SIZE]))
+		length, err := strconv.Atoi(string(bulkString[1 : len(bulkString)-resp.TERMINATOR_SIZE]))
 		if err != nil {
 			return resp.ErrLengthExtraction
 		}
-		bulkStrinData := make([]byte, length)
-		copied, err := io.ReadFull(reader, bulkStrinData)
+		bulkStringData := make([]byte, length)
+		copied, err := io.ReadFull(reader, bulkStringData)
 		if err != nil {
 			return err
 		}
-		if copied != len(bulkStrinData) {
+		if copied != len(bulkStringData) {
 			return resp.ErrBulkStringDataSize
 		}
 		// read the terminator
-		terminator, err := reader.ReadBytes('\n')
+		_, err = reader.ReadBytes('\n')
 		if err != nil {
 			return resp.ErrTerminatorNotFound
 		}
-		bulkString = append(bulkString, bulkStrinData...)
-		bulkString = append(bulkString, terminator...)
-		// add bulk string to the data
-		data = append(data, bulkString...)
+		// add command/arg to the data without the TERMINATOR
+		command = append(command, bulkStringData)
 	}
-	c.Write(data)
+	switch string(command[0]) {
+	case "PING":
+		serialisedData := ping(command[1:])
+		if serialisedData == nil {
+			c.Close()
+		}
+		c.Write(serialisedData)
+	}
 	c.Close()
 	return nil
 }
@@ -86,6 +92,6 @@ func main() {
 		if err != nil {
 			log.Fatalln(err)
 		}
-		go dispatcher(conn)
+		go dispatch(conn)
 	}
 }
