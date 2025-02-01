@@ -68,12 +68,16 @@ func dispatchHelper(c net.Conn) error {
 		// add command/arg to the data without the TERMINATOR
 		command = append(command, bulkStringData)
 	}
+	var serialisedData []byte
 	switch string(command[0]) {
 	case "PING":
-		serialisedData := ping(command[1:])
-		if serialisedData == nil {
-			c.Close()
-		}
+		serialisedData, err = ping(command[1:])
+	case "ECHO":
+		serialisedData, err = echo(command[1:])
+	}
+	if err != nil {
+		return err
+	} else {
 		c.Write(serialisedData)
 	}
 	c.Close()
