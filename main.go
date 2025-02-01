@@ -11,94 +11,58 @@ import (
 )
 
 func dispatcher(c net.Conn) {
-	// TODO: dispatch to handlers
-	reader := bufio.NewReader(c)
-	// reuse same error object
-	var e resp.SimpleError
-	// client always sends an array of bulk strings
-	data, err := reader.ReadBytes('\n')
+	var respError resp.SimpleError
+	err := dispatchHelper(c)
 	if err != nil {
-		e.Data = resp.ErrTerminatorNotFound.Error()
-		serialisedError, serialisationError := e.Serialise()
+		respError.Data = err.Error()
+		serialisedError, serialisationError := respError.Serialise()
 		if serialisationError != nil {
 			c.Close()
 		}
 		c.Write(serialisedError)
 		c.Close()
 	}
+}
+
+func dispatchHelper(c net.Conn) error {
+	// TODO: dispatch to handlers
+	reader := bufio.NewReader(c)
+	// client always sends an array of bulk strings
+	data, err := reader.ReadBytes('\n')
+	if err != nil {
+		return resp.ErrTerminatorNotFound
+	}
 	if string(data[0]) != resp.ARRAY_IDENTIFIER {
-		e.Data = resp.ErrInvalidClientData.Error()
-		serialisedError, serialisationError := e.Serialise()
-		if serialisationError != nil {
-			c.Close()
-		}
-		c.Write(serialisedError)
-		c.Close()
+		return resp.ErrInvalidClientData
 	}
 	// find the size of the array
 	size, err := strconv.Atoi(string(data[1 : len(data)-resp.TERMINATOR_SIZE]))
 	if err != nil {
-		e.Data = resp.ErrLengthExtraction.Error()
-		serialisedError, serialisationError := e.Serialise()
-		if serialisationError != nil {
-			c.Close()
-		}
-		c.Write(serialisedError)
-		c.Close()
+		return resp.ErrLengthExtraction
 	}
 	for i := 0; i < size; i++ {
 		// read one bulk string at a time
 		bulkString, err := reader.ReadBytes('\n')
 		if err != nil {
-			e.Data = resp.ErrTerminatorNotFound.Error()
-			serialisedError, serialisationError := e.Serialise()
-			if serialisationError != nil {
-				c.Close()
-			}
-			c.Write(serialisedError)
-			c.Close()
+			return resp.ErrTerminatorNotFound
 		}
 		// extract length
 		length, err := strconv.Atoi(string(data[1 : len(bulkString)-resp.TERMINATOR_SIZE]))
 		if err != nil {
-			e.Data = resp.ErrLengthExtraction.Error()
-			serialisedError, serialisationError := e.Serialise()
-			if serialisationError != nil {
-				c.Close()
-			}
-			c.Write(serialisedError)
-			c.Close()
+			return resp.ErrLengthExtraction
 		}
 		bulkStrinData := make([]byte, length)
 		copied, err := io.ReadFull(reader, bulkStrinData)
 		if err != nil {
-			e.Data = err.Error()
-			serialisedError, serialisationError := e.Serialise()
-			if serialisationError != nil {
-				c.Close()
-			}
-			c.Write(serialisedError)
-			c.Close()
+			return err
 		}
 		if copied != len(bulkStrinData) {
-			e.Data = resp.ErrBulkStringDataSize.Error()
-			serialisedError, serialisationError := e.Serialise()
-			if serialisationError != nil {
-				c.Close()
-			}
-			c.Write(serialisedError)
-			c.Close()
+			return resp.ErrBulkStringDataSize
 		}
 		// read the terminator
 		terminator, err := reader.ReadBytes('\n')
 		if err != nil {
-			e.Data = resp.ErrTerminatorNotFound.Error()
-			serialisedError, serialisationError := e.Serialise()
-			if serialisationError != nil {
-				c.Close()
-			}
-			c.Write(serialisedError)
-			c.Close()
+			return resp.ErrTerminatorNotFound
 		}
 		bulkString = append(bulkString, bulkStrinData...)
 		bulkString = append(bulkString, terminator...)
@@ -107,6 +71,7 @@ func dispatcher(c net.Conn) {
 	}
 	c.Write(data)
 	c.Close()
+	return nil
 }
 
 func main() {
