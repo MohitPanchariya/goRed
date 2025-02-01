@@ -10,6 +10,8 @@ import (
 	"github.com/MohitPanchariya/goRed/resp"
 )
 
+var keyValueStore = newStore()
+
 func dispatch(c net.Conn) {
 	var respError resp.SimpleError
 	err := dispatchHelper(c)
@@ -74,6 +76,10 @@ func dispatchHelper(c net.Conn) error {
 		serialisedData, err = ping(command[1:])
 	case "ECHO":
 		serialisedData, err = echo(command[1:])
+	case "GET":
+		serialisedData, err = get(command[1:], keyValueStore)
+	case "SET":
+		serialisedData, err = set(command[1:], keyValueStore)
 	}
 	if err != nil {
 		return err
