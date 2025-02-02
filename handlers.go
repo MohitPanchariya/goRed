@@ -2,20 +2,28 @@ package main
 
 import (
 	"sync"
+	"time"
 
 	"github.com/MohitPanchariya/goRed/resp"
 )
 
+// `redisValue` represents a key's value
+type redisValue struct {
+	expire    time.Time // expiration timestamp(unix milliseconds)
+	valueType string    // type of value held by the key
+	value     []byte    // the value stored as bytes
+}
+
 // store is a concurrent safe map
 type store struct {
 	lock sync.Mutex
-	db   map[string][]byte
+	db   map[string]redisValue
 }
 
 // `newStore` returns an instance of `store`
 func newStore() *store {
 	s := store{
-		db: make(map[string][]byte),
+		db: make(map[string]redisValue),
 	}
 	return &s
 }
@@ -25,11 +33,11 @@ func newStore() *store {
 func (s *store) get(key string) ([]byte, bool) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	data, ok := s.db[key]
+	value, ok := s.db[key]
 	if !ok {
 		return nil, ok
 	}
-	return data, ok
+	return value.value, ok
 }
 
 // `set` is used to set the value of a key in a
@@ -37,7 +45,10 @@ func (s *store) get(key string) ([]byte, bool) {
 func (s *store) set(key string, value []byte) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	s.db[key] = value
+	s.db[key] = redisValue{
+		valueType: "string",
+		value:     value,
+	}
 }
 
 // PING command returns PONG
