@@ -235,3 +235,25 @@ func exists(args [][]byte, s *store) ([]byte, error) {
 	}
 	return serialisedData, nil
 }
+
+// DEL command deletes a key(s)
+func del(args [][]byte, s *store) ([]byte, error) {
+	deleteCounter := 0
+	for i := 0; i < len(args); i++ {
+		_, ok := s.get(string(args[i]))
+		if ok {
+			deleteCounter++
+			s.lock.Lock()
+			delete(s.db, string(args[i]))
+			s.lock.Unlock()
+		}
+	}
+	resp := resp.Integer{
+		Data: int64(deleteCounter),
+	}
+	serialised, err := resp.Serialise()
+	if err != nil {
+		return nil, err
+	}
+	return serialised, nil
+}
