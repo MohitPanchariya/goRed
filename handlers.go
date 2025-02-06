@@ -216,3 +216,22 @@ func set(args [][]byte, s *store) ([]byte, error) {
 	}
 	return serialised, nil
 }
+
+// EXISTS command checks if a key(s) exists
+func exists(args [][]byte, s *store) ([]byte, error) {
+	existsCounter := 0
+	for i := 0; i < len(args); i++ {
+		_, ok := s.get(string(args[i]))
+		if ok {
+			existsCounter++
+		}
+	}
+	reply := resp.Integer{
+		Data: int64(existsCounter),
+	}
+	serialisedData, err := reply.Serialise()
+	if err != nil {
+		return nil, err
+	}
+	return serialisedData, nil
+}

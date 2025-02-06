@@ -80,6 +80,8 @@ func dispatchHelper(c net.Conn) error {
 		serialisedData, err = get(command[1:], keyValueStore)
 	case "SET":
 		serialisedData, err = set(command[1:], keyValueStore)
+	case "EXISTS":
+		serialisedData, err = exists(command[1:], keyValueStore)
 	}
 	if err != nil {
 		return err
