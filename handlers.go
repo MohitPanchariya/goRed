@@ -38,6 +38,14 @@ func (s *store) get(key string) ([]byte, bool) {
 	if !ok {
 		return nil, ok
 	}
+	if !value.expire.IsZero() {
+		expired := value.expire.Compare(time.Now())
+		if expired == -1 {
+			// delete the key - This is a passive delete strategy
+			delete(s.db, key)
+			return nil, false
+		}
+	}
 	return value.value, ok
 }
 
