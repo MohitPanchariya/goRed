@@ -90,6 +90,8 @@ func dispatchHelper(c net.Conn) error {
 			serialisedData, err = exists(command[1:], keyValueStore)
 		case "DEL":
 			serialisedData, err = del(command[1:], keyValueStore)
+		case "INCR":
+			serialisedData, err = incr(command[1:], keyValueStore)
 		}
 		if err != nil {
 			return err

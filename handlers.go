@@ -257,3 +257,23 @@ func del(args [][]byte, s *store) ([]byte, error) {
 	}
 	return serialised, nil
 }
+
+// INCR command increments the number stored at key by one
+func incr(args [][]byte, s *store) ([]byte, error) {
+	key := string(args[0])
+	response := resp.Integer{}
+	data, ok := s.get(key)
+	if !ok {
+		s.set(key, []byte("1"), time.Time{})
+		response.Data = 1
+	} else {
+		integer, err := strconv.Atoi(string(data))
+		if err != nil {
+			return nil, err
+		}
+		s.set(key, []byte(strconv.Itoa(integer+1)), time.Time{})
+		response.Data = int64(integer + 1)
+	}
+	serialised, err := response.Serialise()
+	return serialised, err
+}
