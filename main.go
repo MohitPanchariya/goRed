@@ -94,6 +94,12 @@ func dispatchHelper(c net.Conn) error {
 			serialisedData, err = incr(command[1:], keyValueStore)
 		case "DECR":
 			serialisedData, err = decr(command[1:], keyValueStore)
+		case "LPUSH":
+			serialisedData, err = lpush(command[1:], keyValueStore)
+		case "RPUSH":
+			serialisedData, err = rpush(command[1:], keyValueStore)
+		case "LRANGE":
+			serialisedData, err = lrange(command[1:], keyValueStore)
 		}
 		if err != nil {
 			return err
