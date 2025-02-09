@@ -12,7 +12,7 @@ import (
 type redisValue struct {
 	expire    time.Time // expiration timestamp(unix milliseconds)
 	valueType string    // type of value held by the key
-	value     []byte    // the value stored as bytes
+	value     any
 }
 
 // store is a concurrent safe map
@@ -46,7 +46,7 @@ func (s *store) get(key string) ([]byte, bool) {
 			return nil, false
 		}
 	}
-	return value.value, ok
+	return value.value.([]byte), ok
 }
 
 // `set` is used to set the value of a key in a
