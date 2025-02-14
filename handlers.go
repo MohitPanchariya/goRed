@@ -1,6 +1,9 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
+	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -194,6 +197,7 @@ func set(args [][]byte, s *store) ([]byte, error) {
 	}
 	currentValue.value = value
 	currentValue.expire = expiration
+	currentValue.valueType = "string"
 	s.set(key, currentValue)
 	var response resp.RESPDatatype
 	if get && keyExists {
@@ -365,6 +369,25 @@ func rpush(args [][]byte, s *store) ([]byte, error) {
 	return response.Serialise()
 }
 
+// convert a list to a RESP array of bulk strings
+func (l *list) toRESPArray(start, end int) ([]byte, error) {
+	var response resp.Array
+	listPointer := l.head
+	for i := 0; i < l.length && i < start; i++ {
+		listPointer = listPointer.next
+	}
+	for i := start; i < l.length && i <= end; i++ {
+		elem := resp.BulkString{
+			Data: listPointer.data,
+			Size: len(listPointer.data),
+		}
+		response.Elements = append(response.Elements, &elem)
+		listPointer = listPointer.next
+	}
+	response.Size = len(response.Elements)
+	return response.Serialise()
+}
+
 // LRANGE command returns specified elements of the list
 // stored at key
 func lrange(args [][]byte, s *store) ([]byte, error) {
@@ -389,19 +412,76 @@ func lrange(args [][]byte, s *store) ([]byte, error) {
 	if start > l.value.(*list).length {
 		return response.Serialise()
 	}
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	return l.value.(*list).toRESPArray(start, end)
+}
 
-	listPointer := l.value.(*list).head
-	for i := 0; i < l.value.(*list).length && i < start; i++ {
-		listPointer = listPointer.next
+// SAVE command is used to save the database to disk
+func save(args [][]byte, s *store) ([]byte, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	// serialise the database
+	db, err := os.Create("goRed.dump")
+	if err != nil {
+		return nil, resp.ErrFailedToCreateDumpFile
 	}
-	for i := start; i < l.value.(*list).length && i <= end; i++ {
-		elem := resp.BulkString{
-			Data: listPointer.data,
-			Size: len(listPointer.data),
+	writer := bufio.NewWriter(db)
+	for key, value := range s.db {
+		keyBulk := resp.BulkString{
+			Data: []byte(key),
+			Size: len(key),
 		}
-		response.Elements = append(response.Elements, &elem)
-		listPointer = listPointer.next
+		serialisedKey, err := keyBulk.Serialise()
+		if err != nil {
+			return nil, err
+		}
+		expire := value.expire.Format(time.UnixDate)
+		timeBulk := resp.BulkString{
+			Data: []byte(expire),
+			Size: len(expire),
+		}
+		serialisedExpire, err := timeBulk.Serialise()
+		if err != nil {
+			return nil, err
+		}
+		valueTypeBulk := resp.BulkString{
+			Data: []byte(value.valueType),
+			Size: len(value.valueType),
+		}
+		serialisedValueType, err := valueTypeBulk.Serialise()
+		if err != nil {
+			return nil, err
+		}
+		var serialisedValue []byte
+		// a list will be stored as an array of bulk string
+		if value.valueType == "list" {
+			serialisedValue, err = value.value.(*list).toRESPArray(0, value.value.(*list).length)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			dataBulk := resp.BulkString{
+				Data: value.value.([]byte),
+				Size: len(value.value.([]byte)),
+			}
+			serialisedValue, err = dataBulk.Serialise()
+			if err != nil {
+				return nil, err
+			}
+		}
+		serialisedData := bytes.Join([][]byte{serialisedKey, serialisedExpire, serialisedValueType, serialisedValue}, []byte(""))
+		written, err := writer.Write(serialisedData)
+		if err != nil || written < len(serialisedData) {
+			return nil, resp.ErrFailedToDumpDB
+		}
 	}
-	response.Size = len(response.Elements)
+	err = writer.Flush()
+	if err != nil {
+		return nil, resp.ErrFailedToDumpDB
+	}
+	response := resp.SimpleString{
+		Data: "OK",
+	}
 	return response.Serialise()
 }

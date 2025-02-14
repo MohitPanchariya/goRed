@@ -100,6 +100,8 @@ func dispatchHelper(c net.Conn) error {
 			serialisedData, err = rpush(command[1:], keyValueStore)
 		case "LRANGE":
 			serialisedData, err = lrange(command[1:], keyValueStore)
+		case "SAVE":
+			serialisedData, err = save(command[1:], keyValueStore)
 		}
 		if err != nil {
 			return err
