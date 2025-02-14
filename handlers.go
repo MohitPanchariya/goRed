@@ -428,26 +428,23 @@ func save(args [][]byte, s *store) ([]byte, error) {
 	}
 	writer := bufio.NewWriter(db)
 	for key, value := range s.db {
-		keyBulk := resp.BulkString{
-			Data: []byte(key),
-			Size: len(key),
+		keyBulk := resp.SimpleString{
+			Data: string([]byte(key)),
 		}
 		serialisedKey, err := keyBulk.Serialise()
 		if err != nil {
 			return nil, err
 		}
 		expire := value.expire.Format(time.UnixDate)
-		timeBulk := resp.BulkString{
-			Data: []byte(expire),
-			Size: len(expire),
+		timeBulk := resp.SimpleString{
+			Data: string([]byte(expire)),
 		}
 		serialisedExpire, err := timeBulk.Serialise()
 		if err != nil {
 			return nil, err
 		}
-		valueTypeBulk := resp.BulkString{
-			Data: []byte(value.valueType),
-			Size: len(value.valueType),
+		valueTypeBulk := resp.SimpleString{
+			Data: string([]byte(value.valueType)),
 		}
 		serialisedValueType, err := valueTypeBulk.Serialise()
 		if err != nil {
