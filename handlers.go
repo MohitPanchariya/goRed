@@ -422,7 +422,7 @@ func save(args [][]byte, s *store) ([]byte, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	// serialise the database
-	db, err := os.Create("goRed.dump")
+	db, err := os.Create("db.dump")
 	if err != nil {
 		return nil, resp.ErrFailedToCreateDumpFile
 	}
