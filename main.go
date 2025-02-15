@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -212,6 +213,7 @@ func extractKeyValuePair(reader *bufio.Reader) (string, redisValue, error) {
 		// add the values to a list
 		list := newList()
 		value.value = list
+		value.valueType = "list"
 		list.tpush(nodes)
 	}
 	return key, value, nil
@@ -234,9 +236,10 @@ func loadFromDB(file *os.File) error {
 }
 
 func main() {
-	if len(os.Args) > 1 {
-		dbFilePath := os.Args[1]
-		dbFile, err := os.Open(dbFilePath)
+	dumpFile := flag.String("dump-file", "", "path to the database dump")
+	flag.Parse()
+	if *dumpFile != "" {
+		dbFile, err := os.Open(*dumpFile)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
