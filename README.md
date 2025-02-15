@@ -243,3 +243,20 @@ OK
 (error) value not of list type
 ```
 TC: O(S + N), where "S" is the offset from the head of the list and "N" is the number of elements in the range.
+
+### SAVE
+```
+SAVE
+```
+The SAVE command performs a synchronous save of the database.
+The SAVE operation blocks all the clients.
+<br>
+SAVE responds back with "OK".
+<br>
+TC: O(N) where "N" is the number of keys.
+
+## Load from DB dump on start up
+At start up, the path to a dump file can be provided and the key-value pairs will be loaded into the database.
+```
+goRed <path to db dump>
+```
