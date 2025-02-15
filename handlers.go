@@ -351,6 +351,12 @@ func lpush(args [][]byte, s *store) ([]byte, error) {
 		}
 		s.set(key, value)
 	} else {
+		if value.valueType != "list" {
+			response := resp.SimpleError{
+				Data: "value not of list type",
+			}
+			return response.Serialise()
+		}
 		l = value.value.(*list)
 	}
 	l.hpush(nodes)
@@ -379,6 +385,12 @@ func rpush(args [][]byte, s *store) ([]byte, error) {
 		}
 		s.set(key, value)
 	} else {
+		if value.valueType != "list" {
+			response := resp.SimpleError{
+				Data: "value not of list type",
+			}
+			return response.Serialise()
+		}
 		l = value.value.(*list)
 	}
 	l.tpush(nodes)
@@ -418,6 +430,12 @@ func lrange(args [][]byte, s *store) ([]byte, error) {
 	key := string(args[0])
 	l, ok := s.get(key)
 	if !ok {
+		return response.Serialise()
+	}
+	if l.valueType != "list" {
+		response := resp.SimpleError{
+			Data: "value not of list type",
+		}
 		return response.Serialise()
 	}
 	start, err := strconv.Atoi(string(args[1]))
