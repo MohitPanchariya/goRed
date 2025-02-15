@@ -4,6 +4,21 @@ goRed is a remote-dictionary service that speaks RESP(Redis Serialization Protoc
 goRed doesn't have its own client as of now. Since it speaks RESP, `redis-cli`
 can be used as a client.
 
+## Performance Benchmarking
+The `benchmark.sh` script launches 50 parallel clients, each of which run the `get` and `set` commands 2000 times in parallel.
+
+| Run No.| goRed | redis |
+| --- | ------- | --------- |
+| 1   | 1.329 sec | 1.226 sec |
+| 2   | 1.286 sec | 1.219 sec |
+| 3   | 1.264 sec | 1.214 sec |
+| 4   | 1.300 sec | 1.236 sec |
+| 5   | 1.270 sec | 1.241 sec |
+
+Average execution time of `goRed`: 1.289 sec
+<br>
+Average execution time of `redis`: 1.227 sec
+
 ## Supported Commands
 
 ### PING
