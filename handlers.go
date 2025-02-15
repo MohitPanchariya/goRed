@@ -324,9 +324,9 @@ func decr(args [][]byte, s *store) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		value.value = []byte(strconv.Itoa(integer + 1))
+		value.value = []byte(strconv.Itoa(integer - 1))
 		s.set(key, value)
-		response.Data = int64(integer + 1)
+		response.Data = int64(integer - 1)
 	}
 	serialised, err := response.Serialise()
 	return serialised, err
