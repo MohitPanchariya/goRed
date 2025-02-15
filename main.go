@@ -2,10 +2,14 @@ package main
 
 import (
 	"bufio"
+	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net"
+	"os"
 	"strconv"
+	"time"
 
 	"github.com/MohitPanchariya/goRed/resp"
 )
@@ -111,7 +115,136 @@ func dispatchHelper(c net.Conn) error {
 	}
 }
 
+// `extractKeyValuePair` extracts a key value pair
+func extractKeyValuePair(reader *bufio.Reader) (string, redisValue, error) {
+	var value redisValue
+	keyToken, err := reader.ReadBytes('\n')
+	if err != nil {
+		// no bytes read implies the reader has reach EOF
+		if len(keyToken) == 0 {
+			return "", value, io.EOF
+		}
+		return "", value, err
+	}
+	key := string(keyToken[1 : len(keyToken)-resp.TERMINATOR_SIZE])
+	expireTimeToken, err := reader.ReadBytes('\n')
+	if err != nil {
+		return "", value, err
+	}
+	expireTime, err := time.Parse(time.UnixDate, string(expireTimeToken[1:len(expireTimeToken)-resp.TERMINATOR_SIZE]))
+	if err != nil {
+		return "", value, err
+	}
+	valueTypeToken, err := reader.ReadBytes('\n')
+	if err != nil {
+		return "", value, err
+	}
+	valueType := string(valueTypeToken[1 : len(valueTypeToken)-resp.TERMINATOR_SIZE])
+	if valueType == "string" {
+		bulkString, err := reader.ReadBytes('\n')
+		if err != nil {
+			return "", value, err
+		}
+		length, err := strconv.Atoi(string(bulkString[1 : len(bulkString)-resp.TERMINATOR_SIZE]))
+		if err != nil {
+			return "", value, err
+		}
+		bulkStringData := make([]byte, length)
+		copied, err := io.ReadFull(reader, bulkStringData)
+		if err != nil {
+			return "", value, err
+		}
+		if copied != len(bulkStringData) {
+			return "", value, resp.ErrBulkStringDataSize
+		}
+		// read the terminator
+		_, err = reader.ReadBytes('\n')
+		if err != nil {
+			return "", value, resp.ErrTerminatorNotFound
+		}
+		value.value = bulkStringData
+		value.expire = expireTime
+		value.valueType = "string"
+	} else { // list is stored as an array of bulk strings
+		// arrayToken is made up of ARRAY_IDENTIFIER<size>TERMINATOR
+		arrayToken, err := reader.ReadBytes('\n')
+		if err != nil {
+			return "", value, resp.ErrTerminatorNotFound
+		}
+		if string(arrayToken[0]) != resp.ARRAY_IDENTIFIER {
+			return "", value, resp.ErrInvalidClientData
+		}
+		arraySize, err := strconv.Atoi(string(arrayToken[1 : len(arrayToken)-resp.TERMINATOR_SIZE]))
+		if err != nil {
+			return "", value, resp.ErrLengthExtraction
+		}
+		nodes := make([]*node, arraySize)
+		// read one bulk string at a time
+		for i := 0; i < arraySize; i++ {
+			bulkString, err := reader.ReadBytes('\n')
+			if err != nil {
+				return "", value, resp.ErrTerminatorNotFound
+			}
+			// extract length
+			length, err := strconv.Atoi(string(bulkString[1 : len(bulkString)-resp.TERMINATOR_SIZE]))
+			if err != nil {
+				return "", value, resp.ErrLengthExtraction
+			}
+			bulkStringData := make([]byte, length)
+			copied, err := io.ReadFull(reader, bulkStringData)
+			if err != nil {
+				return "", value, err
+			}
+			if copied != len(bulkStringData) {
+				return "", value, resp.ErrBulkStringDataSize
+			}
+			nodes[i] = &node{
+				data: bulkStringData,
+			}
+			// read the terminator
+			_, err = reader.ReadBytes('\n')
+			if err != nil {
+				return "", value, resp.ErrTerminatorNotFound
+			}
+		}
+		// add the values to a list
+		list := newList()
+		value.value = list
+		list.tpush(nodes)
+	}
+	return key, value, nil
+}
+
+func loadFromDB(file *os.File) error {
+	reader := bufio.NewReader(file)
+	for {
+		key, value, err := extractKeyValuePair(reader)
+		if err != nil {
+			// finished reading the dump
+			if errors.Is(err, io.EOF) {
+				break
+			}
+		}
+		// store the key value pair in the database
+		keyValueStore.db[key] = value
+	}
+	return nil
+}
+
 func main() {
+	if len(os.Args) > 1 {
+		dbFilePath := os.Args[1]
+		dbFile, err := os.Open(dbFilePath)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		err = loadFromDB(dbFile)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	}
 	listener, err := net.Listen("tcp", ":6379")
 	if err != nil {
 		log.Fatalln(err)

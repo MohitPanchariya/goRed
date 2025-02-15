@@ -12,4 +12,5 @@ var (
 	ErrBulkStringDataSize     = errors.New("bulk string size and data don't match")
 	ErrFailedToCreateDumpFile = errors.New("failed to make the dump file")
 	ErrFailedToDumpDB         = errors.New("failed to write to the database file")
+	ErrInvalidDBFile          = errors.New("invalid DB file")
 )
