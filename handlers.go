@@ -98,6 +98,13 @@ func get(args [][]byte, s *store) ([]byte, error) {
 		null.Size = -1
 		return null.Serialise()
 	}
+	// check if value is of type string
+	if value.valueType != "string" {
+		response := resp.SimpleError{
+			Data: "value is not of string type",
+		}
+		return response.Serialise()
+	}
 	// get returns bulk strings
 	var response resp.BulkString
 	response.Data = value.value.([]byte)
