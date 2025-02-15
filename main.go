@@ -106,6 +106,8 @@ func dispatchHelper(c net.Conn) error {
 			serialisedData, err = lrange(command[1:], keyValueStore)
 		case "SAVE":
 			serialisedData, err = save(command[1:], keyValueStore)
+		default:
+			return resp.ErrInvalidCommand
 		}
 		if err != nil {
 			return err
