@@ -283,6 +283,12 @@ func incr(args [][]byte, s *store) ([]byte, error) {
 		s.set(key, value)
 		response.Data = 1
 	} else {
+		if value.valueType != "string" {
+			response := resp.SimpleError{
+				Data: "value is not of numeric type",
+			}
+			return response.Serialise()
+		}
 		integer, err := strconv.Atoi(string(value.value.([]byte)))
 		if err != nil {
 			return nil, err
@@ -308,6 +314,12 @@ func decr(args [][]byte, s *store) ([]byte, error) {
 		s.set(key, value)
 		response.Data = -1
 	} else {
+		if value.valueType != "string" {
+			response := resp.SimpleError{
+				Data: "value is not of numeric type",
+			}
+			return response.Serialise()
+		}
 		integer, err := strconv.Atoi(string(value.value.([]byte)))
 		if err != nil {
 			return nil, err
